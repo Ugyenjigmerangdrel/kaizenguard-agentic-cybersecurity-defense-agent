@@ -33,6 +33,25 @@ type PacketEntry struct {
 	Fragment  uint16 `json:"fragment_offset,omitempty"`
 	Flags     string `json:"flags,omitempty"`
 
+	// L4
+	L4      string `json:"l4,omitempty"`
+	SrcPort int    `json:"src_port,omitempty"`
+	DstPort int    `json:"dst_port,omitempty"`
+
+	// TCP flags
+	SYN    bool   `json:"syn,omitempty"`
+	ACK    bool   `json:"ack,omitempty"`
+	FIN    bool   `json:"fin,omitempty"`
+	RST    bool   `json:"rst,omitempty"`
+	PSH    bool   `json:"psh,omitempty"`
+	URG    bool   `json:"urg,omitempty"`
+	Window uint16 `json:"window,omitempty"`
+	Seq    uint32 `json:"seq,omitempty"`
+	AckNum uint32 `json:"ack_num,omitempty"`
+
+	// UDP
+	UDPLen int `json:"udp_length,omitempty"`
+
 	RawBase64 string `json:"raw_base64,omitempty"`
 
 	raw []byte
@@ -163,6 +182,32 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 
 			if tr := p.TransportLayer(); tr != nil {
 				entry.Proto = tr.LayerType().String()
+			}
+
+			// L4 parsing (TCP/UDP)
+			if tcpLayer := p.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+				tcp := tcpLayer.(*layers.TCP)
+				entry.L4 = "TCP"
+				entry.SrcPort = int(tcp.SrcPort)
+				entry.DstPort = int(tcp.DstPort)
+
+				entry.SYN = tcp.SYN
+				entry.ACK = tcp.ACK
+				entry.FIN = tcp.FIN
+				entry.RST = tcp.RST
+				entry.PSH = tcp.PSH
+				entry.URG = tcp.URG
+				entry.Window = tcp.Window
+				entry.Seq = tcp.Seq
+				entry.AckNum = tcp.Ack
+			}
+
+			if udpLayer := p.Layer(layers.LayerTypeUDP); udpLayer != nil {
+				udp := udpLayer.(*layers.UDP)
+				entry.L4 = "UDP"
+				entry.SrcPort = int(udp.SrcPort)
+				entry.DstPort = int(udp.DstPort)
+				entry.UDPLen = int(udp.Length)
 			}
 
 			entry.RawBase64 = base64.StdEncoding.EncodeToString(raw)
