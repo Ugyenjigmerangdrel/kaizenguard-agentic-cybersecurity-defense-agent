@@ -206,6 +206,7 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				entry.TOS = ipv4.TOS
 				entry.Flags = ipv4.Flags.String()
 				entry.Fragment = ipv4.FragOffset
+				entry.Protocol = "IPv4"
 			}
 			if ip6 := p.Layer(layers.LayerTypeIPv6); ip6 != nil {
 				ipv6 := ip6.(*layers.IPv6)
@@ -215,6 +216,7 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				entry.HopLimit = ipv6.HopLimit
 				entry.FlowLabel = ipv6.FlowLabel
 				entry.TrafficClass = ipv6.TrafficClass
+				entry.Protocol = "IPv6"
 			}
 
 			// L4 parsing (TCP/UDP)
@@ -233,6 +235,7 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				entry.Window = tcp.Window
 				entry.Seq = tcp.Seq
 				entry.AckNum = tcp.Ack
+				entry.Protocol = "TCP"
 			}
 
 			if udpLayer := p.Layer(layers.LayerTypeUDP); udpLayer != nil {
@@ -241,6 +244,7 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				entry.SrcPort = int(udp.SrcPort)
 				entry.DstPort = int(udp.DstPort)
 				entry.UDPLen = int(udp.Length)
+				entry.Protocol = "UDP"
 			}
 
 			// L7 parsing
@@ -250,6 +254,7 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				dns := dnsLayer.(*layers.DNS)
 				if len(dns.Questions) > 0 {
 					entry.DNSQuery = string(dns.Questions[0].Name)
+					entry.Protocol = "DNS"
 				}
 			}
 
@@ -268,16 +273,19 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 							entry.HTTPUserAgent = strings.TrimSpace(strings.TrimPrefix(l, "User-Agent:"))
 						}
 					}
+					entry.Protocol = "HTTP"
 				}
 
 				// SSDP detection
 				if strings.Contains(payload, "M-SEARCH") || strings.Contains(payload, "NOTIFY * HTTP/") {
 					entry.SSDP = true
+					entry.Protocol = "SSDP"
 				}
 
 				// mDNS
 				if entry.SrcPort == 5353 || entry.DstPort == 5353 {
 					entry.MDNS = true
+					entry.Protocol = "mDNS"
 				}
 			}
 
