@@ -76,14 +76,18 @@ type RingBuffer struct {
 	count  int
 	mu     sync.RWMutex
 	nextID int64
+
+	subMu sync.Mutex
+	subs  map[int]chan *PacketEntry
 }
 
 var Buffer *RingBuffer
 
 func InitBuffer(capacity int) {
 	Buffer = &RingBuffer{
-		buf: make([]*PacketEntry, capacity),
-		cap: capacity,
+		buf:  make([]*PacketEntry, capacity),
+		cap:  capacity,
+		subs: make(map[int]chan *PacketEntry),
 	}
 }
 
@@ -127,6 +131,26 @@ func (r *RingBuffer) GetByID(id int64) *PacketEntry {
 		}
 	}
 	return nil
+}
+
+func (r *RingBuffer) Subscribe() (int, chan *PacketEntry) {
+	r.subMu.Lock()
+	defer r.subMu.Unlock()
+
+	id := int(atomic.AddInt64(&r.nextID, 1))
+	ch := make(chan *PacketEntry, 256)
+	r.subs[id] = ch
+	return id, ch
+}
+
+func (r *RingBuffer) Unsubscribe(id int) {
+	r.subMu.Lock()
+	defer r.subMu.Unlock()
+
+	if ch, ok := r.subs[id]; ok {
+		close(ch)
+		delete(r.subs, id)
+	}
 }
 
 func StartCapture(iface string, snap int32, promisc bool, filter string) error {
