@@ -33,7 +33,7 @@ type PacketEntry struct {
 	FlowLabel    uint32 `json:"flow_label,omitempty"`
 	Fragment     uint16 `json:"fragment_offset,omitempty"`
 	Flags        string `json:"flags,omitempty"`
-	TrafficClass string `json:"traffic_class,omitempty"`
+	TrafficClass uint8  `json:"traffic_class,omitempty"`
 
 	// L4
 	L4      string `json:"l4,omitempty"`
