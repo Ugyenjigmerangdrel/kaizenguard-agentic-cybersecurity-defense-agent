@@ -22,7 +22,7 @@ var upgrader = websocket.Upgrader{
 
 // List packets
 func HandleListPackets(w http.ResponseWriter, r *http.Request) {
-	limit := 100
+	limit := 100 // default limit of packets output at a time
 	if s := r.URL.Query().Get("limit"); s != "" {
 		if v, err := strconv.Atoi(s); err == nil {
 			limit = v
@@ -60,7 +60,7 @@ func HandleGetPacket(w http.ResponseWriter, r *http.Request) {
 
 // Export packets as PCAP
 func HandleExportPCAP(w http.ResponseWriter, r *http.Request) {
-	n := 100
+	n := 1000 // default limit of packets exported
 	if s := r.URL.Query().Get("count"); s != "" {
 		if v, err := strconv.Atoi(s); err == nil {
 			n = v
