@@ -191,10 +191,6 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				entry.TrafficClass = ipv6.TrafficClass
 			}
 
-			if tr := p.TransportLayer(); tr != nil {
-				entry.Proto = tr.LayerType().String()
-			}
-
 			// L4 parsing (TCP/UDP)
 			if tcpLayer := p.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 				tcp := tcpLayer.(*layers.TCP)
