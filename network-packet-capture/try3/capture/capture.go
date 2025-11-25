@@ -3,6 +3,7 @@ package capture
 import (
 	"encoding/base64"
 	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,15 +24,16 @@ type PacketEntry struct {
 	EthernetType string `json:"ether_type,omitempty"`
 
 	// L3
-	Src       string `json:"src,omitempty"`
-	Dst       string `json:"dst,omitempty"`
-	IPVersion string `json:"ip_version,omitempty"`
-	TTL       uint8  `json:"ttl,omitempty"`
-	TOS       uint8  `json:"tos,omitempty"`
-	HopLimit  uint8  `json:"hop_limit,omitempty"`
-	FlowLabel uint32 `json:"flow_label,omitempty"`
-	Fragment  uint16 `json:"fragment_offset,omitempty"`
-	Flags     string `json:"flags,omitempty"`
+	Src          string `json:"src,omitempty"`
+	Dst          string `json:"dst,omitempty"`
+	IPVersion    string `json:"ip_version,omitempty"`
+	TTL          uint8  `json:"ttl,omitempty"`
+	TOS          uint8  `json:"tos,omitempty"`
+	HopLimit     uint8  `json:"hop_limit,omitempty"`
+	FlowLabel    uint32 `json:"flow_label,omitempty"`
+	Fragment     uint16 `json:"fragment_offset,omitempty"`
+	Flags        string `json:"flags,omitempty"`
+	TrafficClass string `json:"traffic_class,omitempty"`
 
 	// L4
 	L4      string `json:"l4,omitempty"`
@@ -51,6 +53,15 @@ type PacketEntry struct {
 
 	// UDP
 	UDPLen int `json:"udp_length,omitempty"`
+
+	// L7 Metadata
+	DNSQuery      string `json:"dns_query,omitempty"`
+	HTTPMethod    string `json:"http_method,omitempty"`
+	HTTPHost      string `json:"http_host,omitempty"`
+	HTTPPath      string `json:"http_path,omitempty"`
+	HTTPUserAgent string `json:"http_user_agent,omitempty"`
+	SSDP          bool   `json:"ssdp,omitempty"`
+	MDNS          bool   `json:"mdns,omitempty"`
 
 	RawBase64 string `json:"raw_base64,omitempty"`
 
@@ -208,6 +219,44 @@ func StartCapture(iface string, snap int32, promisc bool, filter string) error {
 				entry.SrcPort = int(udp.SrcPort)
 				entry.DstPort = int(udp.DstPort)
 				entry.UDPLen = int(udp.Length)
+			}
+
+			// L7 parsing
+
+			// DNS
+			if dnsLayer := p.Layer(layers.LayerTypeDNS); dnsLayer != nil {
+				dns := dnsLayer.(*layers.DNS)
+				if len(dns.Questions) > 0 {
+					entry.DNSQuery = string(dns.Questions[0].Name)
+				}
+			}
+
+			// HTTP (very basic heuristics)
+			if app := p.ApplicationLayer(); app != nil {
+				payload := string(app.Payload())
+
+				if len(payload) > 4 && (payload[:3] == "GET" || payload[:4] == "POST") {
+					entry.HTTPMethod = strings.Fields(payload)[0]
+					lines := strings.Split(payload, "\n")
+					for _, l := range lines {
+						if strings.HasPrefix(l, "Host:") {
+							entry.HTTPHost = strings.TrimSpace(strings.TrimPrefix(l, "Host:"))
+						}
+						if strings.HasPrefix(l, "User-Agent:") {
+							entry.HTTPUserAgent = strings.TrimSpace(strings.TrimPrefix(l, "User-Agent:"))
+						}
+					}
+				}
+
+				// SSDP detection
+				if strings.Contains(payload, "M-SEARCH") || strings.Contains(payload, "NOTIFY * HTTP/") {
+					entry.SSDP = true
+				}
+
+				// mDNS
+				if entry.SrcPort == 5353 || entry.DstPort == 5353 {
+					entry.MDNS = true
+				}
 			}
 
 			entry.RawBase64 = base64.StdEncoding.EncodeToString(raw)
