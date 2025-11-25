@@ -63,6 +63,8 @@ type PacketEntry struct {
 	SSDP          bool   `json:"ssdp,omitempty"`
 	MDNS          bool   `json:"mdns,omitempty"`
 
+	Protocol string `json:"protocol,omitempty"`
+
 	RawBase64 string `json:"raw_base64,omitempty"`
 
 	raw []byte
