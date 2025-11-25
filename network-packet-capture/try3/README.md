@@ -11,3 +11,11 @@ Run the container
 We provide packet capture capabilities to the container and set the network to host to be able to capture packets on the host machines network(this can be changed according to your preference). 
 
 The interface is set as wlan0 (Wireless interface on host machine, change this if your interface name differs).
+
+## Execution
+
+The container serves on port `8080`. The endpoints served are - 
+- `/packets` - list of all captured packets
+- `/packets/` - specific packet
+- `/export` - export the captured packets into a pcap
+- `/stream` - stream of packets being captured
